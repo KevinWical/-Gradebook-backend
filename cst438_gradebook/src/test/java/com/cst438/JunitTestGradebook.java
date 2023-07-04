@@ -1,6 +1,7 @@
 package com.cst438;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 
 import org.junit.jupiter.api.Test;
@@ -8,21 +9,27 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import java.util.Optional;
 
+import com.cst438.controllers.AssignmentController;
 import com.cst438.controllers.GradeBookController;
 import com.cst438.domain.Assignment;
 import com.cst438.domain.AssignmentGrade;
 import com.cst438.domain.AssignmentGradeRepository;
+import com.cst438.domain.AssignmentListDTO;
 import com.cst438.domain.AssignmentRepository;
 import com.cst438.domain.Course;
 import com.cst438.domain.CourseRepository;
@@ -46,7 +53,7 @@ import org.springframework.test.context.ContextConfiguration;
  *  addFilters=false turns off security.  (I could not get security to work in test environment.)
  *  WebMvcTest is needed for test environment to create Repository classes.
  */
-@ContextConfiguration(classes = { GradeBookController.class })
+@ContextConfiguration(classes = { GradeBookController.class, AssignmentController.class })
 @AutoConfigureMockMvc(addFilters = false)
 @WebMvcTest
 public class JunitTestGradebook {
@@ -242,6 +249,225 @@ public class JunitTestGradebook {
 		updatedag.setScore("88");
 		verify(assignmentGradeRepository, times(1)).save(updatedag);
 	}
+	
+	// Kevins API tests
+	@Test
+	public void testAddAssignmentSuccess() throws Exception {
+	   // Given proper courseId, name, and dueDate
+	   int courseId = 999001;
+
+	   // Mock
+	   AssignmentListDTO.AssignmentDTO assignmentDTO = new AssignmentListDTO.AssignmentDTO();
+	   assignmentDTO.dueDate = "2023-12-31";
+	   assignmentDTO.assignmentName = "TestAddAssignmentSuccess";
+	   Course course = new Course();
+	   course.setCourse_id(courseId);
+
+	   given(courseRepository.findById(courseId)).willReturn(Optional.of(course));
+
+	   // Convert assignmentDTO to JSON string
+	   String requestBody = asJsonString(assignmentDTO);
+
+	   System.out.println("Request Body: " + requestBody);
+	   // Perform the request
+	   MvcResult result = mvc.perform(MockMvcRequestBuilders
+	         .post("/gradebook/{id}", courseId)
+	         .accept(MediaType.APPLICATION_JSON)
+	         .contentType(MediaType.APPLICATION_JSON)
+	         .content(requestBody))
+	         .andReturn();
+	   
+	   assertEquals(HttpStatus.OK.value(), result.getResponse().getStatus());
+	   verify(assignmentRepository, times(1)).save(any());
+	}
+	
+	@Test
+	public void testAddAssignmentCourseNotFound() throws Exception{
+	   // given improper courseId
+	   Integer courseId = 99999;
+	   
+	   // Mock
+      AssignmentListDTO.AssignmentDTO assignmentDTO = new AssignmentListDTO.AssignmentDTO();
+      assignmentDTO.assignmentName = "TestAddAssignmentSuccess";
+      assignmentDTO.dueDate = "2023-12-31";
+      
+      given(courseRepository.findById(courseId)).willReturn(Optional.empty());
+      
+      // perform request
+      mvc.perform(MockMvcRequestBuilders.post("/gradebook/{id}", courseId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(asJsonString(assignmentDTO) ) )
+            .andExpect(status().is4xxClientError());
+      
+      verify(assignmentRepository, times(0)).save(any());
+	}
+	
+	@Test
+	public void testUpdateAssignmentNameSuccess() throws Exception{
+	   // Given proper assignment ID and newName
+	   Integer assignmentId = 2;
+	   String newName = "Final Exam!!!";
+	   
+	   // Mock 
+	   Assignment assignment = new Assignment();
+	   assignment.setId(assignmentId);
+	   assignment.setName("Old name");	  
+	   Course course = new Course();
+	   course.setInstructor("dwisneski@csumb.edu");
+	   assignment.setCourse(course);
+	   
+	   given(assignmentRepository.findById(assignmentId)).willReturn(Optional.of(assignment));
+
+	   // Peform request
+	   mvc.perform(MockMvcRequestBuilders.patch("/gradebook/{id}/{name}", assignmentId, newName)
+	         .contentType(MediaType.APPLICATION_JSON))
+	         .andExpect(status().isOk());
+	   
+	   Assignment updatedAssignment = assignmentRepository.findById(assignmentId).orElse(null);
+	   
+	   assertNotNull(updatedAssignment);
+	   assertEquals(newName, updatedAssignment.getName());
+	   verify(assignmentRepository, times(1)).save(any());
+	}
+	
+	@Test
+	public void testUpdateAssignmentNameNotFound() throws Exception{
+	   // Given invalid assignmentId
+	   Integer assignmentId = 99999;
+	   String newName = "AssignmentNotFound";
+	   
+	   // Mock 
+	   Assignment assignment = new Assignment();
+      assignment.setId(assignmentId);
+      assignment.setName("Old name");
+      
+      given(assignmentRepository.findById(assignmentId)).willReturn(Optional.empty());
+      
+      // Perform request
+      mvc.perform(MockMvcRequestBuilders.patch("/gradebook/{id}/{name}", assignmentId, newName)
+            .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().is4xxClientError());
+      
+      verify(assignmentRepository, times(0)).save(any());
+	}
+	
+	@Test
+	public void testUpdateAssignmentNameEmptyName() throws Exception{
+	   // Given an empty string for a new name
+	   Integer assignmentId = 3;
+	   
+	   // Mock 
+	   Assignment assignment = new Assignment();
+	   assignment.setId(assignmentId);
+	   assignment.setName("old name");
+	   
+      // Perform request
+      mvc.perform(MockMvcRequestBuilders.patch("/gradebook/{id}", assignmentId)
+            .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().is4xxClientError());
+      
+      verify(assignmentRepository, times(0)).save(any());
+	}
+	  
+	@Test
+	public void testDeleteAssignmentSuccess() throws Exception {
+	   // given proper assignmentId and courseId
+	   Integer assignmentId = 5;
+	   Integer courseId = 999001;
+	   
+	   // Mock
+	   Assignment assignment = new Assignment();
+	   assignment.setId(assignmentId);
+	   Course course = new Course();
+	   course.setInstructor("dwisneski@csumb.edu");
+	   assignment.setCourse(course);
+	   
+	   given(assignmentRepository.findById(assignmentId)).willReturn(Optional.of(assignment));
+	   given(courseRepository.findById(courseId)).willReturn(Optional.of(course));
+	   given(assignmentGradeRepository.existsByAssignment(assignment)).willReturn(false);
+
+	   // Peform request
+      mvc.perform(MockMvcRequestBuilders.delete("/gradebook/{assignment_id}/{course_id}", assignmentId, courseId)
+            .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk());
+      
+      verify(assignmentRepository, times(1)).delete(any());
+	}
+	
+	@Test
+	public void testDeleteAssignmentAssignmentNotFound() throws Exception{
+	   // given invalid assignmentid 
+	   Integer assignmentId = 999999;
+	   Integer courseId = 123456;
+	   
+      // Mock
+      Assignment assignment = new Assignment();
+      assignment.setId(assignmentId);
+      Course course = new Course();
+      course.setInstructor("dwisneski@csumb.edu");
+      assignment.setCourse(course);
+      
+      given(assignmentRepository.findById(assignmentId)).willReturn(Optional.empty());
+      given(courseRepository.findById(courseId)).willReturn(Optional.of(course));
+      given(assignmentGradeRepository.existsByAssignment(assignment)).willReturn(false);
+      
+      // perform request
+      mvc.perform(MockMvcRequestBuilders.delete("/gradebook/{assignment_id}/{course_id}", assignmentId, courseId)
+            .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().is4xxClientError());
+      
+      verify(assignmentRepository, times(0)).delete(any());
+	}
+	
+   @Test
+   public void testDeleteAssignmentCourseNotFound() throws Exception{
+      // given invalid courseid
+      Integer assignmentId = 6;
+      Integer courseId = 1234;
+      
+      // Mock
+      Assignment assignment = new Assignment();
+      assignment.setId(assignmentId);
+      Course course = new Course();
+      course.setInstructor("dwisneski@csumb.edu");
+      assignment.setCourse(course);
+      
+      given(assignmentRepository.findById(assignmentId)).willReturn(Optional.of(assignment));
+      given(courseRepository.findById(courseId)).willReturn(Optional.empty());
+      given(assignmentGradeRepository.existsByAssignment(assignment)).willReturn(false);
+      
+      // perform request
+      mvc.perform(MockMvcRequestBuilders.delete("/gradebook/{assignment_id}/{course_id}", assignmentId, courseId)
+            .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().is4xxClientError());
+      
+      verify(assignmentRepository, times(0)).delete(any());
+   }
+   
+   @Test
+   public void testDeleteAssignmentGivenExistingGrades() throws Exception{
+      // given existing grades
+      Integer assignmentId = 1;
+      Integer courseId = 999001;
+      
+      // Mock
+      Assignment assignment = new Assignment();
+      assignment.setId(assignmentId);
+      Course course = new Course();
+      course.setInstructor("dwisneski@csumb.edu");
+      assignment.setCourse(course);  
+      
+      given(assignmentRepository.findById(assignmentId)).willReturn(Optional.of(assignment));
+      given(courseRepository.findById(courseId)).willReturn(Optional.of(course));
+      given(assignmentGradeRepository.existsByAssignment(assignment)).willReturn(true);
+
+      // perform request
+      mvc.perform(MockMvcRequestBuilders.delete("/gradebook/{assignment_id}/{course_id}", assignmentId, courseId)
+            .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().is4xxClientError());
+      
+      verify(assignmentRepository, times(0)).delete(any());
+   }
 
 	private static String asJsonString(final Object obj) {
 		try {

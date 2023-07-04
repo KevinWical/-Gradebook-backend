@@ -153,9 +153,8 @@ public class GradeBookController {
 			
 			assignmentGradeRepository.save(ag);
 		}
-		
 	}
-	
+   
 	private Assignment checkAssignment(int assignmentId, String email) {
 		// get assignment 
 		Assignment assignment = assignmentRepository.findById(assignmentId).orElse(null);
@@ -165,8 +164,7 @@ public class GradeBookController {
 		// check that user is the course instructor
 		if (!assignment.getCourse().getInstructor().equals(email)) {
 			throw new ResponseStatusException( HttpStatus.UNAUTHORIZED, "Not Authorized. " );
-		}
-		
+		}		
 		return assignment;
 	}
 
