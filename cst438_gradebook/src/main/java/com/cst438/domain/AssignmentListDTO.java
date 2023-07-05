@@ -14,6 +14,14 @@ public class AssignmentListDTO {
 		public String courseTitle;
 		public int courseId;
 
+		public AssignmentDTO(){
+	      this.assignmentId = 0;
+         this.courseId = 0;
+         this.assignmentName = null;
+         this.dueDate = null;
+         this.courseTitle = null;
+		}
+		
 		public AssignmentDTO(int assignmentId, int courseId, String assignmentName, String dueDate,
 				String courseTitle) {
 			this.assignmentId = assignmentId;

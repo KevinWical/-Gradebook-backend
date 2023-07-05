@@ -11,4 +11,5 @@ public interface AssignmentGradeRepository extends CrudRepository <AssignmentGra
 			@Param("assignmentId") int assignmentId, 
 			@Param("email") String email );
 	
+	boolean existsByAssignment (Assignment assignment); // true if any grades
 }

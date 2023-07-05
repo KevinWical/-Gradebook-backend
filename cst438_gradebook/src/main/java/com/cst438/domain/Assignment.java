@@ -10,6 +10,7 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
+import javax.persistence.CascadeType;
 
 @Entity
 public class Assignment {
@@ -22,13 +23,13 @@ public class Assignment {
 	@JoinColumn(name="course_id")
 	private Course course;
 	
-	@OneToMany(mappedBy="assignment")
+	@OneToMany(mappedBy="assignment", cascade = CascadeType.REMOVE)
 	private List<AssignmentGrade> assignmentGrades;
 	
 	private String name;
 	private Date dueDate;
 	private int needsGrading;  // 0 = false,  1= true (past due date and not all students have grades)
-	
+
 	public int getId() {
 		return id;
 	}
