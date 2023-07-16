@@ -44,15 +44,17 @@ public class RegistrationServiceMQ extends RegistrationService {
 	@Transactional
 	public void receive(EnrollmentDTO enrollmentDTO) {
 		
-		//TODO  complete this method in homework 4
+	   System.out.println("Recieved: " + enrollmentDTO);
 		
 	}
 
 	// sender of messages to Registration Service
 	@Override
 	public void sendFinalGrades(int course_id, CourseDTOG courseDTO) {
-		 
-		//TODO  complete this method in homework 4
+		
+	   System.out.println("Sending final grades " + course_id + courseDTO);
+      rabbitTemplate.convertAndSend(courseDTO);
+      System.out.println("Sent final grades ");
 		
 	}
 
