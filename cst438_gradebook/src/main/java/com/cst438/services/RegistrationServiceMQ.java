@@ -44,15 +44,26 @@ public class RegistrationServiceMQ extends RegistrationService {
 	@Transactional
 	public void receive(EnrollmentDTO enrollmentDTO) {
 		
-		//TODO  complete this method in homework 4
+	   System.out.println("Recieved: " + enrollmentDTO);
+	   
+	   Course course = courseRepository.findById(enrollmentDTO.course_id).get();
+	   Enrollment enrollment = new Enrollment();
+	   enrollment.setStudentEmail(enrollmentDTO.studentEmail);
+	   enrollment.setStudentName(enrollmentDTO.studentName);
+	   enrollment.setCourse(course);
+	   
+	   enrollmentRepository.save(enrollment);
+	   System.out.println("Saved: " + enrollmentDTO);
 		
 	}
 
 	// sender of messages to Registration Service
 	@Override
 	public void sendFinalGrades(int course_id, CourseDTOG courseDTO) {
-		 
-		//TODO  complete this method in homework 4
+		
+	   //System.out.println("Sending final grades " + course_id + courseDTO);
+      this.rabbitTemplate.convertAndSend(registrationQueue.getName(), courseDTO);
+      System.out.println("Sent final grades for: " + course_id);
 		
 	}
 

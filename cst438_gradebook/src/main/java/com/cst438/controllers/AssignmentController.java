@@ -2,7 +2,8 @@ package com.cst438.controllers;
 
 //import java.util.ArrayList;
 //import java.util.List;
-import java.util.Date;
+//import java.util.Date;
+import java.sql.Date;
 
 import java.text.SimpleDateFormat;
 import java.text.ParseException;
@@ -21,6 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.cst438.domain.Assignment;
 import com.cst438.domain.AssignmentListDTO;
+import com.cst438.domain.AssignmentListDTO.AssignmentDTO;
 import com.cst438.domain.AssignmentGradeRepository;
 import com.cst438.domain.AssignmentRepository;
 import com.cst438.domain.Course;
@@ -44,34 +46,25 @@ public class AssignmentController
    @Autowired
    RegistrationService registrationService;
    
-   @PostMapping("/gradebook/{course_id}")
+   @PostMapping("/gradebook")
    @Transactional
-   public void addAssignment (@RequestBody AssignmentListDTO.AssignmentDTO assignmentDTO, 
-                              @PathVariable("course_id") int courseId ) {
-      // Check to see if the course exists
-      Course course = courseRepository.findById(courseId).orElse(null);
-      if ( course == null) {
-         throw new ResponseStatusException( HttpStatus.BAD_REQUEST, "Course not found.");
+   public AssignmentDTO newAssignment(@RequestBody AssignmentDTO dto) {
+      String email = "dwisneski@csumb.edu";
+      Course c = courseRepository.findById(dto.courseId).orElse(null);
+      if ( c != null && c.getInstructor().equals(email)) {
+         Assignment a = new Assignment();
+         a.setCourse(c);
+         a.setName(dto.assignmentName);
+         a.setDueDate(Date.valueOf(dto.dueDate));
+         a.setNeedsGrading(1);
+         a = assignmentRepository.save(a);
+         dto.assignmentId = a.getId();
+         return dto;
+         
+      } else {
+         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invaid course ID");
+         
       }
-      // Creates the new assignment object and assigns the name from JSON body
-      Assignment assignment = new Assignment();
-      assignment.setName(assignmentDTO.assignmentName);
-      
-      // Manipulate the date datatype in order to parse it correctly to SQL* not working for yyyyy, may need to use regex
-      SimpleDateFormat simpleDate = new SimpleDateFormat("yyyy-mm-dd");
-      Date dueDate;
-      try {
-         dueDate = simpleDate.parse(assignmentDTO.dueDate);
-         java.sql.Date sqlDate = new java.sql.Date(dueDate.getTime());
-         assignment.setDueDate(sqlDate);
-      } catch (ParseException pe) {
-         throw new ResponseStatusException( HttpStatus.BAD_REQUEST, "Invalid date format, should be: yyyy-mm-dd");
-      }
-      // sets the Course for the new assignment and sets NeedsGrading to 1
-      assignment.setCourse(course);
-      assignment.setNeedsGrading(1); // 0 = false,  1= true (past due date and not all students have grades)
-
-      assignmentRepository.save(assignment);
    }
    
    @PatchMapping("/gradebook/{id}/{name}")
